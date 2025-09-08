@@ -7,8 +7,7 @@ from datetime import date
 
 from . import models as m
 from . import schemas as s
-from .database import engine
-from .deps import get_db
+from .database import engine, get_db
 from .logic import report_auslastung, report_abrechnung, report_geraet_finanzen, list_geraete, count_geraete
 
 # Create tables (for first boot; for prod use Alembic)
@@ -16,11 +15,6 @@ m.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Mietpark API", version="1.0.0")
 
-from fastapi.middleware.cors import CORSMiddleware
-
-app = FastAPI(title="Mietpark API", version="1.0.0")
-
-# erlaube Frontend + lokales Dev
 ALLOWED_ORIGINS = [
     "https://flotte-neu-1.onrender.com",
     "http://localhost:5173",
@@ -28,11 +22,12 @@ ALLOWED_ORIGINS = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,  # nicht "*" wenn Browser Preflight macht
-    allow_methods=["*"],            # GET/POST/PUT/DELETE/OPTIONS...
-    allow_headers=["*"],            # z.B. content-type, authorization
-    allow_credentials=False,        # auf True nur wenn Cookies nötig sind
+    allow_origins=ALLOWED_ORIGINS,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    allow_credentials=False,
 )
+
 # CORS: allow all (tighten later per env as needed)
 
 app.add_middleware(
