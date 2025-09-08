@@ -1,18 +1,24 @@
+# backend/main.py
 from __future__ import annotations
+
 from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from typing import List, Optional
 from sqlalchemy.orm import Session
+from typing import List, Optional
 from datetime import date
 
 from . import models as m
 from . import schemas as s
 from .database import engine, get_db
-from .logic import report_auslastung, report_abrechnung, report_geraet_finanzen, list_geraete, count_geraete
+from .logic import (
+    report_auslastung,
+    report_abrechnung,
+    report_geraet_finanzen,
+    list_geraete,
+    count_geraete,
+)
 
-# Create tables (for first boot; for prod use Alembic)
-m.Base.metadata.create_all(bind=engine)
-
+# ---- FastAPI-App & CORS ----
 app = FastAPI(title="Mietpark API", version="1.0.0")
 
 ALLOWED_ORIGINS = [
@@ -28,12 +34,16 @@ app.add_middleware(
     allow_credentials=False,
 )
 
-# CORS: allow all (tighten later per env as needed)
+# ---- Tabellen beim Start anlegen (nur für erste Inbetriebnahme) ----
+@app.on_event("startup")
+def startup_create_tables() -> None:
+    m.Base.metadata.create_all(bind=engine)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"]
-)
+# Kleiner Healthcheck
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
 
 @app.get("/health")
 def health():
