@@ -253,3 +253,22 @@ def geraete_count(
     if standort_typ:
         q = q.filter(models.Geraet.standort_typ == standort_typ)
     return q.scalar() or 0
+
+    @app.get("/geraete")
+def get_geraete(
+    status: m.GeraetStatus | None = None,
+    standort_typ: m.StandortTyp | None = None,
+    skip: int = 0,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+):
+    # nutzt die Funktionen aus logic.py
+    return list_geraete(db, status=status, standort_typ=standort_typ, skip=skip, limit=limit)
+
+@app.get("/geraete/count")
+def get_geraete_count(
+    status: m.GeraetStatus | None = None,
+    standort_typ: m.StandortTyp | None = None,
+    db: Session = Depends(get_db),
+):
+    return count_geraete(db, status=status, standort_typ=standort_typ)
