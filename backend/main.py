@@ -23,6 +23,7 @@ app = FastAPI(title="Mietpark API", version="1.0.0")
 
 ALLOWED_ORIGINS = [
     "https://flotte-neu-1.onrender.com",
+    "https://flotte-neu.onrender.com",
     "http://localhost:5173",
 ]
 
