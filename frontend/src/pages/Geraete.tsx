@@ -5,6 +5,19 @@ import { Pagination } from "../components/Pagination";
 import EditGeraetModal from "../widgets/EditGeraetModal";
 import NewDeviceModal from "../components/NewDeviceModal";
 
+// Hilfstypen für Namen-Tabellen
+type IdName = { id: number; name: string };
+
+// Toleranter Typ für Vermietungen: funktioniert, egal ob die API flach (…_id)
+// oder verschachtelt (…{ id }) zurückgibt.
+type AnyVermietung = {
+  status: string;                 // "OFFEN" | "GESCHLOSSEN" | …
+  geraet_id?: number;
+  kunde_id?: number;
+  geraet?: { id: number };
+  kunde?: { id: number };
+};
+
 export default function Geraete() {
   const [items, setItems] = useState<Geraet[]>([]);
   const [total, setTotal] = useState<number>(0);
@@ -14,22 +27,62 @@ export default function Geraete() {
   const pageSize = 20;
   const skip = (page - 1) * pageSize;
 
+  // Lookup-Maps
+  const [parkNameById, setParkNameById] = useState<Record<number, string>>({});
+  const [kundeNameById, setKundeNameById] = useState<Record<number, string>>({});
+  const [kundeByGeraetId, setKundeByGeraetId] = useState<Record<number, number>>({});
+
   const [edit, setEdit] = useState<Geraet | null>(null);
   const [newOpen, setNewOpen] = useState(false);
 
+  // Stammdaten (Mietparks/Kunden) einmalig laden
+  useEffect(() => {
+    (async () => {
+      const [parks, kunden] = await Promise.all([
+        api.listMietparks() as Promise<IdName[]>,
+        api.listKunden() as Promise<IdName[]>,
+      ]);
+      const pMap: Record<number, string> = {};
+      parks.forEach((p) => (pMap[p.id] = p.name));
+      setParkNameById(pMap);
+
+      const kMap: Record<number, string> = {};
+      kunden.forEach((k) => (kMap[k.id] = k.name || `Kunde #${k.id}`));
+      setKundeNameById(kMap);
+    })();
+  }, []);
+
   async function load() {
-    const list = await api.listGeraete({
-      status: status || undefined,
-      standort_typ: standort || undefined,
-      skip,
-      limit: pageSize,
-    });
-    const cnt = await api.countGeraete({
-      status: status || undefined,
-      standort_typ: standort || undefined,
-    });
+    const [list, cnt] = await Promise.all([
+      api.listGeraete({
+        status: status || undefined,
+        standort_typ: standort || undefined,
+        skip,
+        limit: pageSize,
+      }),
+      api.countGeraete({
+        status: status || undefined,
+        standort_typ: standort || undefined,
+      }),
+    ]);
     setItems(list);
     setTotal(cnt.count);
+
+    // offene Vermietungen -> aktueller Kunde pro Gerät
+    try {
+      const vermietungen = (await api.listVermietungen()) as AnyVermietung[];
+      const openByDevice: Record<number, number> = {};
+      for (const v of vermietungen) {
+        if (v.status === "OFFEN") {
+          const gid = v.geraet_id ?? v.geraet?.id;
+          const kid = v.kunde_id ?? v.kunde?.id;
+          if (gid && kid) openByDevice[gid] = kid;
+        }
+      }
+      setKundeByGeraetId(openByDevice);
+    } catch {
+      // Wenn Vermietungen nicht geladen werden können, wird nur der Mietpark angezeigt.
+    }
   }
 
   useEffect(() => {
@@ -37,19 +90,28 @@ export default function Geraete() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, standort, page]);
 
-  // --- Löschen-Handler ---
   async function onDelete(g: Geraet) {
-    if (!window.confirm(`Gerät "${g.name}" (#${g.id}) wirklich löschen?`)) return;
+    if (!window.confirm(`Gerät "${g.name}" wirklich löschen?`)) return;
     try {
       await api.deleteGeraet(g.id);
-      // Optimistisch aktualisieren
       setItems((prev) => prev.filter((i) => i.id !== g.id));
       setTotal((t) => Math.max(0, t - 1));
-      // Optional sauber neu laden:
-      // await load();
     } catch (e: any) {
       alert(e?.message ?? "Löschen fehlgeschlagen.");
     }
+  }
+
+  function renderStandort(g: Geraet) {
+    if (g.standort_typ === "MIETPARK") {
+      return g.mietpark_id != null
+        ? parkNameById[g.mietpark_id] ?? `Mietpark #${g.mietpark_id}`
+        : "Mietpark";
+    }
+    if (g.standort_typ === "KUNDE") {
+      const kid = kundeByGeraetId[g.id];
+      return kid ? kundeNameById[kid] ?? `Kunde #${kid}` : "Kunde";
+    }
+    return g.standort_typ;
   }
 
   return (
@@ -100,7 +162,7 @@ export default function Geraete() {
       <table className="table">
         <thead>
           <tr>
-            <th className="th">ID</th>
+            <th className="th">Seriennummer</th>
             <th className="th">Name</th>
             <th className="th">Status</th>
             <th className="th">Standort</th>
@@ -111,10 +173,10 @@ export default function Geraete() {
         <tbody>
           {items.map((g) => (
             <tr key={g.id}>
-              <td className="td">{g.id}</td>
+              <td className="td">{g.seriennummer ?? "—"}</td>
               <td className="td">{g.name}</td>
               <td className="td">{g.status}</td>
-              <td className="td">{g.standort_typ}</td>
+              <td className="td">{renderStandort(g)}</td>
               <td className="td">{g.stundenzähler}</td>
               <td className="td">
                 <div className="flex gap-2">
@@ -144,11 +206,7 @@ export default function Geraete() {
         }
       />
 
-      <NewDeviceModal
-        open={newOpen}
-        onClose={() => setNewOpen(false)}
-        onCreated={() => load()}
-      />
+      <NewDeviceModal open={newOpen} onClose={() => setNewOpen(false)} onCreated={() => load()} />
     </div>
   );
 }
