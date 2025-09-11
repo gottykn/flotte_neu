@@ -156,6 +156,22 @@ def update_geraet(geraet_id: int, payload: s.GeraetBase, db: Session = Depends(g
     db.refresh(obj)
     return obj
 
+from sqlalchemy.exc import IntegrityError
+from fastapi import HTTPException
+
+@app.delete("/geraete/{geraet_id}")
+def delete_geraet(geraet_id: int, db: Session = Depends(get_db)):
+    g = db.get(m.Geraet, geraet_id)
+    if not g:
+        raise HTTPException(404, "Gerät nicht gefunden")
+    try:
+        db.delete(g)
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        # Falls z. B. Vermietungen/Wartungen auf das Gerät zeigen
+        raise HTTPException(409, "Gerät hat Referenzen (z. B. Vermietungen/Wartungen) und kann nicht gelöscht werden.")
+    return {"ok": True}
 
 # -------------------------------------------------------------------
 # VERMIETUNG

@@ -14,6 +14,9 @@ export default function Geraete() {
   const pageSize = 20;
   const skip = (page - 1) * pageSize;
 
+  const [edit, setEdit] = useState<Geraet | null>(null);
+  const [newOpen, setNewOpen] = useState(false);
+
   async function load() {
     const list = await api.listGeraete({
       status: status || undefined,
@@ -29,20 +32,41 @@ export default function Geraete() {
     setTotal(cnt.count);
   }
 
-  useEffect(() => { load(); }, [status, standort, page]);
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, standort, page]);
 
-  const [edit, setEdit] = useState<Geraet | null>(null);
-  const [newOpen, setNewOpen] = useState(false);
+  // --- Löschen-Handler ---
+  async function onDelete(g: Geraet) {
+    if (!window.confirm(`Gerät "${g.name}" (#${g.id}) wirklich löschen?`)) return;
+    try {
+      await api.deleteGeraet(g.id);
+      // Optimistisch aktualisieren
+      setItems((prev) => prev.filter((i) => i.id !== g.id));
+      setTotal((t) => Math.max(0, t - 1));
+      // Optional sauber neu laden:
+      // await load();
+    } catch (e: any) {
+      alert(e?.message ?? "Löschen fehlgeschlagen.");
+    }
+  }
 
   return (
     <div className="space-y-4">
       <div className="flex items-end gap-3">
         <label className="text-sm">
           Status
-          <select className="input ml-2" value={status}
-                  onChange={e => { setPage(1); setStatus(e.target.value); }}>
+          <select
+            className="input ml-2"
+            value={status}
+            onChange={(e) => {
+              setPage(1);
+              setStatus(e.target.value);
+            }}
+          >
             <option value="">Alle</option>
-            {["VERFUEGBAR","VERMIETET","WARTUNG","AUSGEMUSTERT"].map(s => (
+            {["VERFUEGBAR", "VERMIETET", "WARTUNG", "AUSGEMUSTERT"].map((s) => (
               <option key={s}>{s}</option>
             ))}
           </select>
@@ -50,15 +74,25 @@ export default function Geraete() {
 
         <label className="text-sm">
           Standort
-          <select className="input ml-2" value={standort}
-                  onChange={e => { setPage(1); setStandort(e.target.value); }}>
+          <select
+            className="input ml-2"
+            value={standort}
+            onChange={(e) => {
+              setPage(1);
+              setStandort(e.target.value);
+            }}
+          >
             <option value="">Alle</option>
-            {["MIETPARK","KUNDE"].map(s => <option key={s}>{s}</option>)}
+            {["MIETPARK", "KUNDE"].map((s) => (
+              <option key={s}>{s}</option>
+            ))}
           </select>
         </label>
 
         <div className="ml-auto flex gap-3">
-          <button className="btn" onClick={() => setNewOpen(true)}>＋ Neues Gerät</button>
+          <button className="btn" onClick={() => setNewOpen(true)}>
+            ＋ Neues Gerät
+          </button>
           <Pagination total={total} page={page} pageSize={pageSize} onPage={setPage} />
         </div>
       </div>
@@ -75,7 +109,7 @@ export default function Geraete() {
           </tr>
         </thead>
         <tbody>
-          {items.map(g => (
+          {items.map((g) => (
             <tr key={g.id}>
               <td className="td">{g.id}</td>
               <td className="td">{g.name}</td>
@@ -83,7 +117,17 @@ export default function Geraete() {
               <td className="td">{g.standort_typ}</td>
               <td className="td">{g.stundenzähler}</td>
               <td className="td">
-                <button className="btn" onClick={() => setEdit(g)}>Bearbeiten</button>
+                <div className="flex gap-2">
+                  <button className="btn" onClick={() => setEdit(g)}>
+                    Bearbeiten
+                  </button>
+                  <button
+                    className="btn bg-red-600 text-white hover:bg-red-700"
+                    onClick={() => onDelete(g)}
+                  >
+                    Löschen
+                  </button>
+                </div>
               </td>
             </tr>
           ))}
@@ -95,7 +139,9 @@ export default function Geraete() {
         open={!!edit}
         geraet={edit}
         onClose={() => setEdit(null)}
-        onSaved={(saved) => setItems(items.map(g => g.id === saved.id ? saved : g))}
+        onSaved={(saved) =>
+          setItems((prev) => prev.map((x) => (x.id === saved.id ? saved : x)))
+        }
       />
 
       <NewDeviceModal
