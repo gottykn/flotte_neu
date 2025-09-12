@@ -159,8 +159,7 @@ export default function Geraete() {
         </div>
       </div>
 
-      // ... oben bleibt unverändert ...
-
+      
 <table className="table">
   <thead>
     <tr>
