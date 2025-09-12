@@ -74,7 +74,8 @@ export const api = {
     request<Geraet>(`/geraete/${id}`, { method: "PUT", body: JSON.stringify(body) }),
   deleteGeraet: (id: number) => request(`/geraete/${id}`, { method: "DELETE" }),
 
-
+  getGeraet: (id: number) => request<Geraet>(`/geraete/${id}`),
+  vermietungenByGeraet: (id: number) => request<Vermietung[]>(`/geraete/${id}/vermietungen`),
   // ---- Vermietungen ----
   listVermietungen: () => request<Vermietung[]>("/vermietungen"),
   createVermietung: (body: any) =>
