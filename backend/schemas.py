@@ -71,6 +71,11 @@ class GeraetBase(BaseModel):
     anschaffungsdatum: Optional[date] = None
     firma_id: int
     mietpark_id: Optional[int] = None
+    # NEU
+    baujahr: Optional[int] = None
+    mietpreis_wert: Optional[float] = None
+    mietpreis_einheit: Optional[SatzEinheit] = None  # oder Optional[Literal["TAEGLICH","WOECHENTLICH","MONATLICH"]]
+    vermietet_in: Optional[str] = None               # ISO-Land
 
 class GeraetOut(GeraetBase):
     id: int

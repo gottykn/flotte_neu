@@ -66,18 +66,32 @@ class Kunde(Base):
 
     vermietungen: Mapped[List["Vermietung"]] = relationship(back_populates="kunde")
 
+class MietpreisEinheit(str, Enum):
+    TAEGLICH = "TAEGLICH"
+    WOECHENTLICH = "WOECHENTLICH"
+    MONATLICH = "MONATLICH"
+
 class Geraet(Base):
     __tablename__ = "geraete"
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
     kategorie: Mapped[Optional[str]] = mapped_column(String(120))
     modell: Mapped[Optional[str]] = mapped_column(String(120))
     seriennummer: Mapped[Optional[str]] = mapped_column(String(120), unique=True)
-    status: Mapped[GeraetStatus] = mapped_column(SAEnum(GeraetStatus), default=GeraetStatus.VERFUEGBAR, nullable=False)
-    standort_typ: Mapped[StandortTyp] = mapped_column(SAEnum(StandortTyp), default=StandortTyp.MIETPARK, nullable=False)
+
+    status: Mapped[GeraetStatus] = mapped_column(SAEnum(GeraetStatus), nullable=False, default=GeraetStatus.VERFUEGBAR)
+    standort_typ: Mapped[StandortTyp] = mapped_column(SAEnum(StandortTyp), nullable=False, default=StandortTyp.MIETPARK)
+
     stundenzähler: Mapped[float] = mapped_column(Float, default=0.0)
     anschaffungspreis: Mapped[Optional[float]] = mapped_column(Float)
     anschaffungsdatum: Mapped[Optional[date]] = mapped_column(Date)
+
+    # NEU (mit typed mapping)
+    baujahr: Mapped[Optional[int]] = mapped_column(Integer)
+    mietpreis_wert: Mapped[Optional[float]] = mapped_column(Float)
+    mietpreis_einheit: Mapped[Optional[MietpreisEinheit]] = mapped_column(SAEnum(MietpreisEinheit))
+    vermietet_in: Mapped[Optional[str]] = mapped_column(String(2))  # ISO-3166-1 alpha-2
 
     firma_id: Mapped[int] = mapped_column(ForeignKey("firmen.id"), nullable=False)
     mietpark_id: Mapped[Optional[int]] = mapped_column(ForeignKey("mietparks.id"))
@@ -90,6 +104,9 @@ class Geraet(Base):
 
     __table_args__ = (
         Index("ix_geraete_status", "status"),
+        # optional:
+        # Index("ix_geraete_sn", "seriennummer"),
+        # Index("ix_geraete_vermietet_in", "vermietet_in"),
     )
 
 class Vermietung(Base):

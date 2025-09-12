@@ -159,42 +159,46 @@ export default function Geraete() {
         </div>
       </div>
 
-      <table className="table">
-        <thead>
-          <tr>
-            <th className="th">Seriennummer</th>
-            <th className="th">Name</th>
-            <th className="th">Status</th>
-            <th className="th">Standort</th>
-            <th className="th">Stunden</th>
-            <th className="th">Aktion</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((g) => (
-            <tr key={g.id}>
-              <td className="td">{g.seriennummer ?? "—"}</td>
-              <td className="td">{g.name}</td>
-              <td className="td">{g.status}</td>
-              <td className="td">{renderStandort(g)}</td>
-              <td className="td">{g.stundenzähler}</td>
-              <td className="td">
-                <div className="flex gap-2">
-                  <button className="btn" onClick={() => setEdit(g)}>
-                    Bearbeiten
-                  </button>
-                  <button
-                    className="btn bg-red-600 text-white hover:bg-red-700"
-                    onClick={() => onDelete(g)}
-                  >
-                    Löschen
-                  </button>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      // ... oben bleibt unverändert ...
+
+<table className="table">
+  <thead>
+    <tr>
+      <th className="th">Seriennr.</th>
+      <th className="th">Name</th>
+      <th className="th">Status</th>
+      <th className="th">Standort</th>
+      <th className="th">Baujahr</th>
+      <th className="th">Mietpreis</th>
+      <th className="th">Vermietet in</th>
+      <th className="th">Stunden</th>
+      <th className="th">Aktion</th>
+    </tr>
+  </thead>
+  <tbody>
+    {items.map(g => (
+      <tr key={g.id}>
+        <td className="td">{g.seriennummer ?? "—"}</td>
+        <td className="td">{g.name}</td>
+        <td className="td">{g.status}</td>
+        <td className="td">{g.standort_typ}</td>
+        <td className="td">{g.baujahr ?? "—"}</td>
+        <td className="td">
+          {g.mietpreis_wert != null && g.mietpreis_einheit
+            ? `${g.mietpreis_wert.toLocaleString("de-DE")} / ${g.mietpreis_einheit}`
+            : "—"}
+        </td>
+        <td className="td">{g.vermietet_in ?? "—"}</td>
+        <td className="td">{g.stundenzähler}</td>
+        <td className="td">
+          <button className="btn mr-2" onClick={() => setEdit(g)}>Bearbeiten</button>
+          <button className="btn-danger" onClick={async () => { await api.deleteGeraet(g.id); load(); }}>Löschen</button>
+        </td>
+      </tr>
+    ))}
+  </tbody>
+</table>
+
 
       {/* Modals */}
       <EditGeraetModal
