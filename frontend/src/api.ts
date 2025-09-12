@@ -1,14 +1,8 @@
-// src/api.ts
-import type { Geraet } from "./types";
-
-type IdName = { id: number; name: string };
-type Kunde = IdName;
-type Vermietung = { id: number; status: string };
+import type { Geraet, Kunde, Vermietung, CountResponse, IdName } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  // Bei GET KEINE Header setzen, um Preflight zu vermeiden.
   const hasBody = !!init.body;
   const isGet = !init.method || init.method.toUpperCase() === "GET";
 
@@ -65,7 +59,7 @@ export const api = {
     const q = new URLSearchParams();
     if (params.status) q.set("status", params.status);
     if (params.standort_typ) q.set("standort_typ", params.standort_typ);
-    return request<{ count: number }>(`/geraete/count?${q.toString()}`);
+    return request<CountResponse>(`/geraete/count?${q.toString()}`);
   },
 
   createGeraet: (body: any) =>
@@ -75,7 +69,10 @@ export const api = {
   deleteGeraet: (id: number) => request(`/geraete/${id}`, { method: "DELETE" }),
 
   getGeraet: (id: number) => request<Geraet>(`/geraete/${id}`),
-  vermietungenByGeraet: (id: number) => request<Vermietung[]>(`/geraete/${id}/vermietungen`),
+  // Falls dein Backend diese Route hat:
+  vermietungenByGeraet: (id: number) =>
+    request<Vermietung[]>(`/geraete/${id}/vermietungen`),
+
   // ---- Vermietungen ----
   listVermietungen: () => request<Vermietung[]>("/vermietungen"),
   createVermietung: (body: any) =>
@@ -107,3 +104,4 @@ export const api = {
     return request<any>(`/berichte/geraete/${geraetId}/finanzen?${q.toString()}`);
   },
 };
+

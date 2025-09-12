@@ -4,6 +4,8 @@ import { Geraet } from "../types";
 import { Pagination } from "../components/Pagination";
 import EditGeraetModal from "../widgets/EditGeraetModal";
 import NewDeviceModal from "../components/NewDeviceModal";
+import { Link } from "react-router-dom";
+
 
 // Hilfstypen für Namen-Tabellen
 type IdName = { id: number; name: string };
@@ -175,26 +177,32 @@ export default function Geraete() {
     </tr>
   </thead>
   <tbody>
-    {items.map(g => (
-      <tr key={g.id}>
-        <td className="td">{g.seriennummer ?? "—"}</td>
-        <td className="td">{g.name}</td>
-        <td className="td">{g.status}</td>
-        <td className="td">{g.standort_typ}</td>
-        <td className="td">{g.baujahr ?? "—"}</td>
-        <td className="td">
-          {g.mietpreis_wert != null && g.mietpreis_einheit
-            ? `${g.mietpreis_wert.toLocaleString("de-DE")} / ${g.mietpreis_einheit}`
-            : "—"}
-        </td>
-        <td className="td">{g.vermietet_in ?? "—"}</td>
-        <td className="td">{g.stundenzähler}</td>
-        <td className="td">
-          <button className="btn mr-2" onClick={() => setEdit(g)}>Bearbeiten</button>
-          <button className="btn-danger" onClick={async () => { await api.deleteGeraet(g.id); load(); }}>Löschen</button>
-        </td>
-      </tr>
-    ))}
+   {items.map(g => (
+  <tr key={g.id}>
+    <td className="td">{g.seriennummer ?? "—"}</td>
+    <td className="td">
+      <Link className="text-blue-600 hover:underline" to={`/geraete/${g.id}`}>
+        {g.name}
+      </Link>
+    </td>
+    <td className="td">{g.status}</td>
+    <td className="td">{renderStandort(g)}</td>
+    <td className="td">{g.baujahr ?? "—"}</td>
+    <td className="td">
+      {g.mietpreis_wert != null && g.mietpreis_einheit
+        ? `${g.mietpreis_wert.toLocaleString("de-DE")} / ${g.mietpreis_einheit}`
+        : "—"}
+    </td>
+    <td className="td">{g.vermietet_in ?? "—"}</td>
+    <td className="td">{g.stundenzähler}</td>
+    <td className="td">
+      <button className="btn mr-2" onClick={() => setEdit(g)}>Bearbeiten</button>
+      <button className="btn-danger" onClick={async () => { await api.deleteGeraet(g.id); load(); }}>
+        Löschen
+      </button>
+    </td>
+  </tr>
+))}
   </tbody>
 </table>
 

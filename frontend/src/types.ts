@@ -1,17 +1,18 @@
 export type ID = number;
 
-export type GeraetStatus  = "VERFUEGBAR" | "VERMIETET" | "WARTUNG" | "AUSGEMUSTERT";
-export type StandortTyp   = "MIETPARK" | "KUNDE";
+export type GeraetStatus = "VERFUEGBAR" | "VERMIETET" | "WARTUNG" | "AUSGEMUSTERT";
+export type StandortTyp  = "MIETPARK" | "KUNDE";
 
 /** Einheiten für Miet-/Satzpreise */
-export type SatzEinheit   = "TAEGLICH" | "WOECHENTLICH" | "MONATLICH";
+export type SatzEinheit = "TAEGLICH" | "WOECHENTLICH" | "MONATLICH";
 
 export type VermietStatus = "RESERVIERT" | "OFFEN" | "GESCHLOSSEN" | "STORNIERT";
 export type PosTyp        = "MONTAGE" | "ERSATZTEIL" | "SERVICEPAUSCHALE" | "VERSICHERUNG" | "SONSTIGES";
 
-export interface Firma   { id: ID; name: string; ust_id?: string; adresse?: string }
-export interface Mietpark{ id: ID; name: string; adresse?: string }
-export interface Kunde   { id: ID; name: string; adresse?: string; ust_id?: string }
+export interface IdName   { id: ID; name: string }
+export interface Firma    extends IdName { ust_id?: string; adresse?: string }
+export interface Mietpark extends IdName { adresse?: string }
+export interface Kunde    extends IdName { adresse?: string; ust_id?: string }
 
 /** Serverantwort für /geraete/count */
 export interface CountResponse { count: number }
@@ -31,7 +32,7 @@ export interface Geraet {
   anschaffungspreis?: number;
   anschaffungsdatum?: string | null;
 
-  /** NEU */
+  // NEU
   baujahr?: number | null;
   mietpreis_wert?: number | null;
   mietpreis_einheit?: SatzEinheit | null;
@@ -46,8 +47,8 @@ export interface Vermietung {
   id: ID;
   geraet_id: ID;
   kunde_id: ID;
-  von: string;               // ISO-Date
-  bis: string;               // ISO-Date
+  von: string; // ISO-Date
+  bis: string; // ISO-Date
   satz_wert: number;
   satz_einheit: SatzEinheit;
   status: VermietStatus;
@@ -66,7 +67,7 @@ export interface Rechnung {
   id: ID;
   vermietung_id: ID;
   nummer: string;
-  datum: string;        // ISO-Date
+  datum: string; // ISO-Date
   bezahlt: boolean;
 }
 

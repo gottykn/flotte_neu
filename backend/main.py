@@ -186,6 +186,25 @@ def delete_geraet(geraet_id: int, db: Session = Depends(get_db)):
         raise HTTPException(409, "Gerät hat Referenzen (z. B. Vermietungen/Wartungen) und kann nicht gelöscht werden.")
     return {"ok": True}
 
+# Einzelgerät laden
+@app.get("/geraete/{geraet_id}", response_model=s.GeraetOut)
+def get_geraet(geraet_id: int, db: Session = Depends(get_db)):
+    obj = db.get(m.Geraet, geraet_id)
+    if not obj:
+        raise HTTPException(404, "Gerät nicht gefunden")
+    return obj
+
+# Vermietungen zu einem Gerät
+@app.get("/geraete/{geraet_id}/vermietungen", response_model=List[s.VermietungOut])
+def list_vermietungen_geraet(geraet_id: int, db: Session = Depends(get_db)):
+    return (
+        db.query(m.Vermietung)
+        .filter(m.Vermietung.geraet_id == geraet_id)
+        .order_by(m.Vermietung.von.desc())
+        .all()
+    )
+
+
 # -------------------------------------------------------------------
 # VERMIETUNG
 # -------------------------------------------------------------------
