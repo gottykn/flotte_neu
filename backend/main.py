@@ -78,7 +78,23 @@ def create_firma(payload: s.FirmaBase, db: Session = Depends(get_db)):
 def list_firmen(db: Session = Depends(get_db)):
     return db.query(m.Firma).order_by(m.Firma.name).all()
 
+@app.put("/firmen/{firma_id}", response_model=s.FirmaOut)
+def update_firma(firma_id: int, payload: s.FirmaBase, db: Session = Depends(get_db)):
+    obj = db.get(m.Firma, firma_id)
+    if not obj:
+        raise HTTPException(404, "Firma nicht gefunden")
+    for k, v in payload.dict().items():
+        setattr(obj, k, v)
+    db.commit(); db.refresh(obj)
+    return obj
 
+@app.delete("/firmen/{firma_id}", status_code=204)
+def delete_firma(firma_id: int, db: Session = Depends(get_db)):
+    obj = db.get(m.Firma, firma_id)
+    if not obj:
+        raise HTTPException(404, "Firma nicht gefunden")
+    db.delete(obj); db.commit()
+    return
 # -------------------------------------------------------------------
 # MIETPARK
 # -------------------------------------------------------------------
@@ -95,6 +111,24 @@ def create_mietpark(payload: s.MietparkBase, db: Session = Depends(get_db)):
 def list_mietparks(db: Session = Depends(get_db)):
     return db.query(m.Mietpark).order_by(m.Mietpark.name).all()
 
+# --- MIETPARK update/delete ---
+@app.put("/mietparks/{mietpark_id}", response_model=s.MietparkOut)
+def update_mietpark(mietpark_id: int, payload: s.MietparkBase, db: Session = Depends(get_db)):
+    obj = db.get(m.Mietpark, mietpark_id)
+    if not obj:
+        raise HTTPException(404, "Mietpark nicht gefunden")
+    for k, v in payload.dict().items():
+        setattr(obj, k, v)
+    db.commit(); db.refresh(obj)
+    return obj
+
+@app.delete("/mietparks/{mietpark_id}", status_code=204)
+def delete_mietpark(mietpark_id: int, db: Session = Depends(get_db)):
+    obj = db.get(m.Mietpark, mietpark_id)
+    if not obj:
+        raise HTTPException(404, "Mietpark nicht gefunden")
+    db.delete(obj); db.commit()
+    return
 
 # -------------------------------------------------------------------
 # KUNDE

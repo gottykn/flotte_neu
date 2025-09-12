@@ -1,8 +1,14 @@
-import type { Geraet, Kunde, Vermietung, CountResponse, IdName } from "./types";
+// src/api.ts
+import type { Geraet } from "./types";
+
+type IdName = { id: number; name: string };
+type Kunde = IdName;
+type Vermietung = { id: number; status: string };
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  // Bei GET KEINE Header setzen, um Preflight zu vermeiden.
   const hasBody = !!init.body;
   const isGet = !init.method || init.method.toUpperCase() === "GET";
 
@@ -40,6 +46,17 @@ export const api = {
   createFirma: (body: any) =>
     request<IdName>("/firmen", { method: "POST", body: JSON.stringify(body) }),
 
+  // ➕ NEU:
+  updateFirma: (id: number, body: any) =>
+    request<IdName>(`/firmen/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+  deleteFirma: (id: number) =>
+    request<void>(`/firmen/${id}`, { method: "DELETE" }),
+
+  updateMietpark: (id: number, body: any) =>
+    request<IdName>(`/mietparks/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+  deleteMietpark: (id: number) =>
+    request<void>(`/mietparks/${id}`, { method: "DELETE" }),
+
   // ---- Geräte ----
   listGeraete: (params: {
     status?: string;
@@ -59,7 +76,7 @@ export const api = {
     const q = new URLSearchParams();
     if (params.status) q.set("status", params.status);
     if (params.standort_typ) q.set("standort_typ", params.standort_typ);
-    return request<CountResponse>(`/geraete/count?${q.toString()}`);
+    return request<{ count: number }>(`/geraete/count?${q.toString()}`);
   },
 
   createGeraet: (body: any) =>
@@ -68,10 +85,6 @@ export const api = {
     request<Geraet>(`/geraete/${id}`, { method: "PUT", body: JSON.stringify(body) }),
   deleteGeraet: (id: number) => request(`/geraete/${id}`, { method: "DELETE" }),
 
-  getGeraet: (id: number) => request<Geraet>(`/geraete/${id}`),
-  // Falls dein Backend diese Route hat:
-  vermietungenByGeraet: (id: number) =>
-    request<Vermietung[]>(`/geraete/${id}/vermietungen`),
 
   // ---- Vermietungen ----
   listVermietungen: () => request<Vermietung[]>("/vermietungen"),
@@ -104,4 +117,3 @@ export const api = {
     return request<any>(`/berichte/geraete/${geraetId}/finanzen?${q.toString()}`);
   },
 };
-
