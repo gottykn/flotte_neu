@@ -4,6 +4,9 @@ import type { Firma, Kunde, Mietpark } from "../types";
 import EditKundeModal from "../widgets/EditKundeModal";
 import EditFirmaModal from "../widgets/EditFirmaModal";
 import EditMietparkModal from "../widgets/EditMietparkModal";
+import NewKundeModal from "../widgets/NewKundeModal";
+import NewFirmaModal from "../widgets/NewFirmaModal";
+import NewMietparkModal from "../widgets/NewMietparkModal";
 
 export default function Stammdaten() {
   const [firmen, setFirmen] = useState<Firma[]>([]);
@@ -14,44 +17,47 @@ export default function Stammdaten() {
   const [editPark, setEditPark] = useState<Mietpark | null>(null);
   const [editKunde, setEditKunde] = useState<Kunde | null>(null);
 
-  async function loadAll() {
-    const [f, p, k] = await Promise.all([
-      api.listFirmen(),
-      api.listMietparks(),
-      api.listKunden(),
-    ]);
-    setFirmen(f as any);
-    setMietparks(p as any);
-    setKunden(k as any);
-  }
+  const [newFirma, setNewFirma] = useState(false);
+  const [newPark, setNewPark] = useState(false);
+  const [newKunde, setNewKunde] = useState(false);
 
   useEffect(() => {
-    loadAll();
+    (async () => {
+      const [f, p, k] = await Promise.all([
+        api.listFirmen(),
+        api.listMietparks(),
+        api.listKunden(),
+      ]);
+      setFirmen(f as any);
+      setMietparks(p as any);
+      setKunden(k as any);
+    })();
   }, []);
 
   async function delFirma(f: Firma) {
     if (!confirm(`Firma „${f.name}“ wirklich löschen?`)) return;
     await api.deleteFirma(f.id);
-    setFirmen((x) => x.filter((i) => i.id !== f.id));
+    setFirmen((arr) => arr.filter((x) => x.id !== f.id));
   }
-
   async function delPark(p: Mietpark) {
     if (!confirm(`Mietpark „${p.name}“ wirklich löschen?`)) return;
     await api.deleteMietpark(p.id);
-    setMietparks((x) => x.filter((i) => i.id !== p.id));
+    setMietparks((arr) => arr.filter((x) => x.id !== p.id));
   }
-
   async function delKunde(k: Kunde) {
     if (!confirm(`Kunde „${k.name}“ wirklich löschen?`)) return;
     await api.deleteKunde(k.id);
-    setKunden((x) => x.filter((i) => i.id !== k.id));
+    setKunden((arr) => arr.filter((x) => x.id !== k.id));
   }
 
   return (
     <div className="grid md:grid-cols-3 gap-6">
       {/* Firmen */}
       <section>
-        <h2 className="font-semibold mb-2">Firmen</h2>
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="font-semibold">Firmen</h2>
+          <button className="btn" onClick={() => setNewFirma(true)}>+ Neu</button>
+        </div>
         <ul className="border rounded divide-y">
           {firmen.map((f) => (
             <li key={f.id} className="p-2 flex items-start justify-between gap-3">
@@ -71,7 +77,10 @@ export default function Stammdaten() {
 
       {/* Mietparks */}
       <section>
-        <h2 className="font-semibold mb-2">Mietparks</h2>
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="font-semibold">Mietparks</h2>
+          <button className="btn" onClick={() => setNewPark(true)}>+ Neu</button>
+        </div>
         <ul className="border rounded divide-y">
           {mietparks.map((m) => (
             <li key={m.id} className="p-2 flex items-start justify-between gap-3">
@@ -90,7 +99,10 @@ export default function Stammdaten() {
 
       {/* Kunden */}
       <section>
-        <h2 className="font-semibold mb-2">Kunden</h2>
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="font-semibold">Kunden</h2>
+          <button className="btn" onClick={() => setNewKunde(true)}>+ Neu</button>
+        </div>
         <ul className="border rounded divide-y">
           {kunden.map((k) => (
             <li key={k.id} className="p-2 flex items-start justify-between gap-3">
@@ -108,7 +120,7 @@ export default function Stammdaten() {
         </ul>
       </section>
 
-      {/* Modals */}
+      {/* Edit-Modals */}
       <EditFirmaModal
         open={!!editFirma}
         firma={editFirma}
@@ -126,6 +138,23 @@ export default function Stammdaten() {
         kunde={editKunde}
         onClose={() => setEditKunde(null)}
         onSaved={(saved) => setKunden((arr) => arr.map((x) => (x.id === saved.id ? saved : x)))}
+      />
+
+      {/* New-Modals */}
+      <NewFirmaModal
+        open={newFirma}
+        onClose={() => setNewFirma(false)}
+        onCreated={(created) => setFirmen((arr) => [created, ...arr])}
+      />
+      <NewMietparkModal
+        open={newPark}
+        onClose={() => setNewPark(false)}
+        onCreated={(created) => setMietparks((arr) => [created, ...arr])}
+      />
+      <NewKundeModal
+        open={newKunde}
+        onClose={() => setNewKunde(false)}
+        onCreated={(created) => setKunden((arr) => [created, ...arr])}
       />
     </div>
   );
