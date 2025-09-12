@@ -36,26 +36,29 @@ export const api = {
   listFirmen: () => request<IdName[]>("/firmen"),
   listMietparks: () => request<IdName[]>("/mietparks"),
   listKunden: () => request<Kunde[]>("/kunden"),
+  
   createKunde: (body: any) =>
     request<Kunde>("/kunden", { method: "POST", body: JSON.stringify(body) }),
   updateKunde: (id: number, body: any) =>
     request<Kunde>(`/kunden/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+  deleteKunde: (id: number) =>
+    request(`/kunden/${id}`, { method: "DELETE" }),
 
   createMietpark: (body: any) =>
     request<IdName>("/mietparks", { method: "POST", body: JSON.stringify(body) }),
+  updateMietpark: (id: number, body: any) =>
+    request<IdName>(`/mietparks/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+  deleteMietpark: (id: number) =>
+    request<void>(`/mietparks/${id}`, { method: "DELETE" }),
+
   createFirma: (body: any) =>
     request<IdName>("/firmen", { method: "POST", body: JSON.stringify(body) }),
-
-  // ➕ NEU:
   updateFirma: (id: number, body: any) =>
     request<IdName>(`/firmen/${id}`, { method: "PUT", body: JSON.stringify(body) }),
   deleteFirma: (id: number) =>
     request<void>(`/firmen/${id}`, { method: "DELETE" }),
 
-  updateMietpark: (id: number, body: any) =>
-    request<IdName>(`/mietparks/${id}`, { method: "PUT", body: JSON.stringify(body) }),
-  deleteMietpark: (id: number) =>
-    request<void>(`/mietparks/${id}`, { method: "DELETE" }),
+  
 
   // ---- Geräte ----
   listGeraete: (params: {
