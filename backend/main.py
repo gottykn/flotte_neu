@@ -7,6 +7,8 @@ from typing import List, Optional
 from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from sqlalchemy import text
+
 
 from . import models as m
 from . import schemas as s
@@ -42,12 +44,23 @@ app.add_middleware(
 @app.on_event("startup")
 def startup_create_tables() -> None:
     m.Base.metadata.create_all(bind=engine)
+    ensure_columns()
+
 
 # Healthcheck
 @app.get("/health")
 def health():
     return {"status": "ok"}
 
+def ensure_columns() -> None:
+    stmts = """
+    ALTER TABLE geraete ADD COLUMN IF NOT EXISTS baujahr INTEGER;
+    ALTER TABLE geraete ADD COLUMN IF NOT EXISTS mietpreis_wert NUMERIC;
+    ALTER TABLE geraete ADD COLUMN IF NOT EXISTS mietpreis_einheit VARCHAR(20);
+    ALTER TABLE geraete ADD COLUMN IF NOT EXISTS vermietet_in VARCHAR(2);
+    """
+    with engine.begin() as conn:
+        conn.execute(text(stmts))
 
 # -------------------------------------------------------------------
 # FIRMA
