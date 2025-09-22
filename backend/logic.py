@@ -39,25 +39,21 @@ def report_auslastung(db: Session, von: date, bis: date, geraet_id: int | None):
     assert bis >= von
     tage_gesamt = days_inclusive(von, bis)
 
-    # Rentals overlapping the window
     v_stmt = select(m.Vermietung)
     if geraet_id:
         v_stmt = v_stmt.where(m.Vermietung.geraet_id == geraet_id)
-    # Only rentals that are (offen or geschlossen or reserviert overlapping) and overlap
     v_stmt = v_stmt.where(
-        or_(
-            m.Vermietung.status.in_([VermietStatus.OFFEN, VermietStatus.GESCHLOSSEN, VermietStatus.RESERVIERT]),
-        )
+        or_(m.Vermietung.status.in_([VermietStatus.OFFEN, VermietStatus.GESCHLOSSEN, VermietStatus.RESERVIERT]))
     )
     vermietungen = db.scalars(v_stmt).all()
 
-    by_geraet = {}
+    by_geraet: dict[int, int] = {}
     for v in vermietungen:
-        overlap = overlap_days(v.von, v.bis, von, bis)
+        v_bis = v.bis or _date.today()
+        overlap = overlap_days(v.von, v_bis, von, bis)
         if overlap <= 0:
             continue
-        agg = by_geraet.setdefault(v.geraet_id, 0)
-        by_geraet[v.geraet_id] = agg + overlap
+        by_geraet[v.geraet_id] = by_geraet.get(v.geraet_id, 0) + overlap
 
     items = []
     sum_vermietet = 0
@@ -91,10 +87,10 @@ def report_abrechnung(db: Session, vermietung_id: int):
     if v.status not in [VermietStatus.OFFEN, VermietStatus.GESCHLOSSEN, VermietStatus.STORNIERT, VermietStatus.RESERVIERT]:
         raise ValueError("Ungültiger Status")
 
-    tage = days_inclusive(v.von, v.bis)
+    bis_eff = v.bis or _date.today()
+    tage = days_inclusive(v.von, bis_eff)
     miete = calc_miete_for_zeitraum(v.satz_wert, v.satz_einheit, tage)
 
-    # Positions
     pos_stmt = select(m.VermietungPosition).where(m.VermietungPosition.vermietung_id == v.id)
     positionen = db.scalars(pos_stmt).all()
     pos_sum = sum(p.menge * p.vk_einzelpreis for p in positionen)

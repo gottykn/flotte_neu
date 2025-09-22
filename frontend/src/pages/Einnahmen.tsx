@@ -48,8 +48,10 @@ export default function Einnahmen() {
   const load = async () => {
     // naive composition: alle Vermietungen holen, Zeitraum filtern, pro ID Abrechnung laden
     const rentals = (await api.listVermietungen()) as Vermietung[];
-    const within = rentals.filter((r) => r.von <= bis && r.bis >= von);
-
+    const within = rentals.filter((r:any) => {
+  const rbis = r.bis ?? "9999-12-31";       // offenes Ende als "sehr weit in der Zukunft"
+  return r.von <= bis && rbis >= von;
+});
     const results: Row[] = [];
     for (const v of within) {
       const ab = await api.abrechnung(v.id);

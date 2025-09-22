@@ -85,14 +85,23 @@ class VermietungBase(BaseModel):
     geraet_id: int
     kunde_id: int
     von: date
-    bis: date
+    bis: Optional[date] = None
     satz_wert: float
     satz_einheit: SatzEinheit
     status: VermietStatus = VermietStatus.RESERVIERT
 
+    @field_validator("bis")
+    @classmethod
+    def _check_range(cls, v, info):
+        von = info.data.get("von")
+        if v is not None and von is not None and v < von:
+            raise ValueError("bis < von")
+        return v
+
 class VermietungOut(VermietungBase):
     id: int
-    class Config: from_attributes = True
+    class Config:
+        from_attributes = True
 
 class VermietungPositionBase(BaseModel):
     vermietung_id: int

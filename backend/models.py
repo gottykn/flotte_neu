@@ -111,25 +111,28 @@ class Geraet(Base):
 
 class Vermietung(Base):
     __tablename__ = "vermietungen"
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     geraet_id: Mapped[int] = mapped_column(ForeignKey("geraete.id"), nullable=False, index=True)
     kunde_id: Mapped[int] = mapped_column(ForeignKey("kunden.id"), nullable=False, index=True)
 
     von: Mapped[date] = mapped_column(Date, nullable=False)
-    bis: Mapped[date] = mapped_column(Date, nullable=False)
+    # WICHTIG: jetzt nullable
+    bis: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+
     satz_wert: Mapped[float] = mapped_column(Float, nullable=False)
     satz_einheit: Mapped[SatzEinheit] = mapped_column(SAEnum(SatzEinheit), nullable=False)
     status: Mapped[VermietStatus] = mapped_column(SAEnum(VermietStatus), default=VermietStatus.RESERVIERT, nullable=False)
 
     geraet: Mapped["Geraet"] = relationship(back_populates="vermietungen")
-    kunde: Mapped["Kunde"] = relationship(back_populates="vermietungen")
-    positionen: Mapped[List["VermietungPosition"]] = relationship(back_populates="vermietung", cascade="all, delete-orphan")
-    rechnungen: Mapped[List["Rechnung"]] = relationship(back_populates="vermietung", cascade="all, delete-orphan")
+    kunde:  Mapped["Kunde"]  = relationship(back_populates="vermietungen")
+    positionen: Mapped[list["VermietungPosition"]] = relationship(back_populates="vermietung", cascade="all, delete-orphan")
+    rechnungen: Mapped[list["Rechnung"]] = relationship(back_populates="vermietung", cascade="all, delete-orphan")
 
     __table_args__ = (
-        CheckConstraint("bis >= von", name="ck_zeitraum_gueltig"),
+        # Bei offenem Ende (bis IS NULL) zulassen, sonst bis >= von
+        CheckConstraint("bis IS NULL OR bis >= von", name="ck_zeitraum_gueltig"),
     )
-
 class VermietungPosition(Base):
     __tablename__ = "vermietung_positionen"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)

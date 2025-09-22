@@ -244,19 +244,14 @@ def list_vermietungen_geraet(geraet_id: int, db: Session = Depends(get_db)):
 # -------------------------------------------------------------------
 @app.post("/vermietungen", response_model=s.VermietungOut)
 def create_vermietung(payload: s.VermietungBase, db: Session = Depends(get_db)):
-    if payload.bis < payload.von:
-        raise HTTPException(400, "bis < von")
+    # Validierung macht das Schema; hier nur persistieren
     obj = m.Vermietung(**payload.dict())
-    db.add(obj)
-    db.commit()
-    db.refresh(obj)
+    db.add(obj); db.commit(); db.refresh(obj)
     return obj
 
-
-@app.get("/vermietungen", response_model=List[s.VermietungOut])
+@app.get("/vermietungen", response_model=list[s.VermietungOut])
 def list_vermietungen(db: Session = Depends(get_db)):
     return db.query(m.Vermietung).order_by(m.Vermietung.id.desc()).all()
-
 
 @app.post("/vermietungen/{vermietung_id}/starten", response_model=s.VermietungOut)
 def starten(vermietung_id: int, db: Session = Depends(get_db)):
@@ -266,21 +261,19 @@ def starten(vermietung_id: int, db: Session = Depends(get_db)):
     v.status = s.VermietStatus.OFFEN
     v.geraet.status = s.GeraetStatus.VERMIETET
     v.geraet.standort_typ = s.StandortTyp.KUNDE
-    db.commit()
-    db.refresh(v)
+    db.commit(); db.refresh(v)
     return v
 
-
 @app.post("/vermietungen/{vermietung_id}/schliessen", response_model=s.VermietungOut)
-def schliessen(vermietung_id: int, db: Session = Depends(get_db)):
+def schliessen(vermietung_id: int, bis: Optional[_date] = None, db: Session = Depends(get_db)):
     v = db.get(m.Vermietung, vermietung_id)
     if not v:
         raise HTTPException(404, "Vermietung nicht gefunden")
     v.status = s.VermietStatus.GESCHLOSSEN
+    v.bis = bis or _date.today()  # Default: heute
     v.geraet.status = s.GeraetStatus.VERFUEGBAR
     v.geraet.standort_typ = s.StandortTyp.MIETPARK
-    db.commit()
-    db.refresh(v)
+    db.commit(); db.refresh(v)
     return v
 
 

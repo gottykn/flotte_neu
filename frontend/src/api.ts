@@ -95,8 +95,11 @@ export const api = {
     request<Vermietung>("/vermietungen", { method: "POST", body: JSON.stringify(body) }),
   startenVermietung: (id: number) =>
     request<Vermietung>(`/vermietungen/${id}/starten`, { method: "POST" }),
-  schliessenVermietung: (id: number) =>
-    request<Vermietung>(`/vermietungen/${id}/schliessen`, { method: "POST" }),
+  // in src/api.ts
+schliessenVermietung: (id: number, bis?: string) =>
+  request<Vermietung>(`/vermietungen/${id}/schliessen${bis ? `?bis=${encodeURIComponent(bis)}` : ""}`, { method: "POST" }),
+
+
 
   // ---- Positionen & Rechnungen ----
   addPosition: (body: any) =>
