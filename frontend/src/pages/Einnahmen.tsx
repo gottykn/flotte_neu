@@ -1,4 +1,3 @@
-// src/pages/Einnahmen.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import Money from "../components/Money";
@@ -9,7 +8,7 @@ type Row = {
   kunde: string;            // Name statt ID
   geraet: string;           // "Name (Seriennr.)" statt ID
   von: string;
-  bis: string;
+  bis: string;              // bleibt string – wir mappen null -> "— offen —"
   miete: number;
   posten: number;
   kosten: number;
@@ -32,7 +31,7 @@ export default function Einnahmen() {
     (async () => {
       const [kunden, geraete] = await Promise.all([
         api.listKunden(),
-        api.listGeraete({ skip: 0, limit: 10000 }), // großzügig, damit alle reinpassen
+        api.listGeraete({ skip: 0, limit: 10000 }),
       ]);
 
       const km: Record<number, Kunde> = {};
@@ -46,30 +45,28 @@ export default function Einnahmen() {
   }, []);
 
   const load = async () => {
-    // naive composition: alle Vermietungen holen, Zeitraum filtern, pro ID Abrechnung laden
     const rentals = (await api.listVermietungen()) as Vermietung[];
-    const within = rentals.filter((r:any) => {
-  const rbis = r.bis ?? "9999-12-31";       // offenes Ende als "sehr weit in der Zukunft"
-  return r.von <= bis && rbis >= von;
-});
+
+    // offenes Ende für den Filter als "weit in der Zukunft" behandeln
+    const within = rentals.filter((r: any) => {
+      const rbis = r.bis ?? "9999-12-31";
+      return r.von <= bis && rbis >= von;
+    });
+
     const results: Row[] = [];
     for (const v of within) {
       const ab = await api.abrechnung(v.id);
 
       const kundeName = kundenById[v.kunde_id]?.name ?? `Kunde #${v.kunde_id}`;
       const g = geraeteById[v.geraet_id];
-      const geraetLabel = g
-        ? g.seriennummer
-          ? `${g.name} (${g.seriennummer})`
-          : g.name
-        : `Gerät #${v.geraet_id}`;
+      const geraetLabel = g ? (g.seriennummer ? `${g.name} (${g.seriennummer})` : g.name) : `Gerät #${v.geraet_id}`;
 
       results.push({
         id: v.id,
         kunde: kundeName,
         geraet: geraetLabel,
         von: v.von,
-        bis: v.bis,
+        bis: v.bis ?? "— offen —",   // <<< WICHTIG: null/undefined zu string mappen
         miete: Number(ab.miete_summe ?? 0),
         posten: Number(ab.positionen_summe ?? 0),
         kosten: Number(ab.kosten_summe ?? 0),
@@ -82,11 +79,8 @@ export default function Einnahmen() {
 
   // neu laden, wenn Zeitraum geändert wurde ODER Lookups da sind
   useEffect(() => {
-    // warten, bis Lookups wenigstens einmal gefüllt wurden
     if (!Object.keys(kundenById).length || !Object.keys(geraeteById).length) return;
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    void load();
   }, [von, bis, kundenById, geraeteById]);
 
   const totals = useMemo(
@@ -109,21 +103,11 @@ export default function Einnahmen() {
       <div className="flex gap-3">
         <label className="text-sm">
           Von{" "}
-          <input
-            className="input ml-1"
-            type="date"
-            value={von}
-            onChange={(e) => setVon(e.target.value)}
-          />
+          <input className="input ml-1" type="date" value={von} onChange={(e) => setVon(e.target.value)} />
         </label>
         <label className="text-sm">
           Bis{" "}
-          <input
-            className="input ml-1"
-            type="date"
-            value={bis}
-            onChange={(e) => setBis(e.target.value)}
-          />
+          <input className="input ml-1" type="date" value={bis} onChange={(e) => setBis(e.target.value)} />
         </label>
       </div>
 
@@ -150,43 +134,20 @@ export default function Einnahmen() {
               <td className="td">{r.geraet}</td>
               <td className="td">{r.von}</td>
               <td className="td">{r.bis}</td>
-              <td className="td">
-                <Money value={r.miete} />
-              </td>
-              <td className="td">
-                <Money value={r.posten} />
-              </td>
-              <td className="td">
-                <Money value={r.einnahmen} />
-              </td>
-              <td className="td">
-                <Money value={r.kosten} />
-              </td>
-              <td className="td font-semibold">
-                <Money value={r.marge} />
-              </td>
+              <td className="td"><Money value={r.miete} /></td>
+              <td className="td"><Money value={r.posten} /></td>
+              <td className="td"><Money value={r.einnahmen} /></td>
+              <td className="td"><Money value={r.kosten} /></td>
+              <td className="td font-semibold"><Money value={r.marge} /></td>
             </tr>
           ))}
-          {/* Summenzeile */}
           <tr className="font-semibold bg-slate-50">
-            <td className="td" colSpan={5}>
-              Summe
-            </td>
-            <td className="td">
-              <Money value={totals.miete} />
-            </td>
-            <td className="td">
-              <Money value={totals.posten} />
-            </td>
-            <td className="td">
-              <Money value={totals.einnahmen} />
-            </td>
-            <td className="td">
-              <Money value={totals.kosten} />
-            </td>
-            <td className="td">
-              <Money value={totals.marge} />
-            </td>
+            <td className="td" colSpan={5}>Summe</td>
+            <td className="td"><Money value={totals.miete} /></td>
+            <td className="td"><Money value={totals.posten} /></td>
+            <td className="td"><Money value={totals.einnahmen} /></td>
+            <td className="td"><Money value={totals.kosten} /></td>
+            <td className="td"><Money value={totals.marge} /></td>
           </tr>
         </tbody>
       </table>
