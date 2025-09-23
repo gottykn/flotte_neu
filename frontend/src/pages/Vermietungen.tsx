@@ -5,16 +5,16 @@ import Toggle from "../components/Toggle";
 import Money from "../components/Money";
 import NewRentalModal from "../components/NewRentalModal";
 
-// *** passender Typ für die List-API ***
+// *** Typ für die List-API (bis kann offen = null sein) ***
 type VermietungLite = {
   id: number;
   geraet_id: number;
   kunde_id: number;
   von: string;
-  bis: string;
+  bis: string | null;
   satz_wert: number;
-  satz_einheit: string; // z.B. "MONATLICH"
-  status: "GEPLANT" | "OFFEN" | "GESCHLOSSEN" | string;
+  satz_einheit: string; // "TAEGLICH" | "WOECHENTLICH" | "MONATLICH"
+  status: "GEPLANT" | "RESERVIERT" | "OFFEN" | "GESCHLOSSEN" | string;
 };
 
 type IdName = { id: number; name: string };
@@ -26,7 +26,7 @@ export default function Vermietungen() {
   const [rechnungen, setRe] = useState<Rechnung[]>([]);
   const [abrechnung, setAb] = useState<any>(null);
 
-  // Lookups für Anzeige
+  // Lookups für Anzeige (Gerätename, Kundenname)
   const [gMap, setGMap] = useState<Record<number, string>>({});
   const [kMap, setKMap] = useState<Record<number, string>>({});
 
@@ -85,13 +85,19 @@ export default function Vermietungen() {
     await reloadAndKeepSelection();
   };
 
+  // NEU: Schließen mit optionalem Datum (leer = heute)
   const closeSel = async () => {
     if (!sel) return;
-    await api.schliessenVermietung(sel.id);
+    const input = window.prompt(
+      "Enddatum zum Schließen (YYYY-MM-DD) — leer lassen für heute:"
+    );
+    const bis = (input ?? "").trim() || undefined; // undefined => heute serverseitig
+    await api.schliessenVermietung(sel.id, bis);
     await reloadAndKeepSelection();
   };
 
-  const canStart = sel?.status === "GEPLANT";
+  // Startbar: geplant ODER reserviert; Schließbar: offen
+  const canStart = sel?.status === "GEPLANT" || sel?.status === "RESERVIERT";
   const canClose = sel?.status === "OFFEN";
 
   return (
@@ -108,7 +114,9 @@ export default function Vermietungen() {
           {vermietungen.map((v) => (
             <li
               key={v.id}
-              className={`cursor-pointer p-2 ${sel?.id === v.id ? "bg-blue-50" : ""}`}
+              className={`cursor-pointer p-2 hover:bg-slate-50 ${
+                sel?.id === v.id ? "bg-blue-50" : ""
+              }`}
               onClick={() => setSel(v)}
             >
               <div className="font-medium">
@@ -116,7 +124,7 @@ export default function Vermietungen() {
                 {kMap[v.kunde_id] ?? `Kunde ${v.kunde_id}`}
               </div>
               <div className="text-xs text-slate-500">
-                {v.von} bis {v.bis} · {v.satz_wert} / {v.satz_einheit} · {v.status}
+                {v.von} bis {v.bis ?? "— offen —"} · {v.satz_wert} / {v.satz_einheit} · {v.status}
               </div>
             </li>
           ))}
@@ -145,7 +153,10 @@ export default function Vermietungen() {
                 <div className="text-sm text-slate-500">Keine Rechnungen gefunden.</div>
               )}
               {rechnungen.map((r) => (
-                <div key={r.id} className="flex items-center justify-between border-b py-2 last:border-0">
+                <div
+                  key={r.id}
+                  className="flex items-center justify-between border-b py-2 last:border-0"
+                >
                   <div>
                     <div className="font-medium">#{r.nummer}</div>
                     <div className="text-xs text-slate-500">{r.datum}</div>

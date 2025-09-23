@@ -1,29 +1,38 @@
+# backend/schemas.py
 from __future__ import annotations
-from datetime import date, datetime
-from typing import Optional, List
-from pydantic import BaseModel, Field
-from enum import Enum
 
-# Mirror the enums to expose via OpenAPI (FastAPI can infer from typing)
+from datetime import date, datetime
+from enum import Enum
+from typing import List, Optional
+
+from pydantic import BaseModel, field_validator, FieldValidationInfo, ConfigDict
+
+
+# ---------- Enums ----------
 class GeraetStatus(str, Enum):
     VERFUEGBAR = "VERFUEGBAR"
     VERMIETET = "VERMIETET"
     WARTUNG = "WARTUNG"
     AUSGEMUSTERT = "AUSGEMUSTERT"
 
+
 class StandortTyp(str, Enum):
     MIETPARK = "MIETPARK"
     KUNDE = "KUNDE"
 
+
 class SatzEinheit(str, Enum):
     TAEGLICH = "TAEGLICH"
+    WOECHENTLICH = "WOECHENTLICH"
     MONATLICH = "MONATLICH"
+
 
 class VermietStatus(str, Enum):
     RESERVIERT = "RESERVIERT"
     OFFEN = "OFFEN"
     GESCHLOSSEN = "GESCHLOSSEN"
     STORNIERT = "STORNIERT"
+
 
 class PosTyp(str, Enum):
     MONTAGE = "MONTAGE"
@@ -32,76 +41,92 @@ class PosTyp(str, Enum):
     VERSICHERUNG = "VERSICHERUNG"
     SONSTIGES = "SONSTIGES"
 
-# ----- Shared base models -----
+
+# ---------- Stammdaten ----------
 class FirmaBase(BaseModel):
     name: str
     ust_id: Optional[str] = None
     adresse: Optional[str] = None
 
+
 class FirmaOut(FirmaBase):
     id: int
-    class Config: from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
 
 class MietparkBase(BaseModel):
     name: str
     adresse: Optional[str] = None
 
+
 class MietparkOut(MietparkBase):
     id: int
-    class Config: from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
 
 class KundeBase(BaseModel):
     name: str
     adresse: Optional[str] = None
     ust_id: Optional[str] = None
 
+
 class KundeOut(KundeBase):
     id: int
-    class Config: from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
+
+# ---------- Gerät ----------
 class GeraetBase(BaseModel):
     name: str
     kategorie: Optional[str] = None
     modell: Optional[str] = None
     seriennummer: Optional[str] = None
+
     status: GeraetStatus = GeraetStatus.VERFUEGBAR
     standort_typ: StandortTyp = StandortTyp.MIETPARK
     stundenzähler: float = 0.0
+
     anschaffungspreis: Optional[float] = None
     anschaffungsdatum: Optional[date] = None
-    firma_id: int
-    mietpark_id: Optional[int] = None
+
     # NEU
     baujahr: Optional[int] = None
     mietpreis_wert: Optional[float] = None
-    mietpreis_einheit: Optional[SatzEinheit] = None  # oder Optional[Literal["TAEGLICH","WOECHENTLICH","MONATLICH"]]
-    vermietet_in: Optional[str] = None               # ISO-Land
+    mietpreis_einheit: Optional[SatzEinheit] = None
+    vermietet_in: Optional[str] = None  # ISO-3166-1 alpha-2
+
+    firma_id: int
+    mietpark_id: Optional[int] = None
+
 
 class GeraetOut(GeraetBase):
     id: int
-    class Config: from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
+
+# ---------- Vermietung ----------
 class VermietungBase(BaseModel):
     geraet_id: int
     kunde_id: int
     von: date
-    bis: Optional[date] = None
+    bis: Optional[date] = None  # offenes Ende erlaubt
     satz_wert: float
     satz_einheit: SatzEinheit
     status: VermietStatus = VermietStatus.RESERVIERT
 
     @field_validator("bis")
     @classmethod
-    def _check_range(cls, v, info):
+    def _check_range(cls, v: Optional[date], info: FieldValidationInfo):
         von = info.data.get("von")
         if v is not None and von is not None and v < von:
             raise ValueError("bis < von")
         return v
 
+
 class VermietungOut(VermietungBase):
     id: int
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
 
 class VermietungPositionBase(BaseModel):
     vermietung_id: int
@@ -110,19 +135,24 @@ class VermietungPositionBase(BaseModel):
     vk_einzelpreis: float = 0.0
     kosten_intern: float = 0.0
 
+
 class VermietungPositionOut(VermietungPositionBase):
     id: int
-    class Config: from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
+
+# ---------- Rechnung / Wartung / Zähler ----------
 class RechnungBase(BaseModel):
     vermietung_id: int
     nummer: str
     datum: date
     bezahlt: bool = False
 
+
 class RechnungOut(RechnungBase):
     id: int
-    class Config: from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
 
 class WartungBase(BaseModel):
     geraet_id: int
@@ -130,24 +160,29 @@ class WartungBase(BaseModel):
     beschreibung: Optional[str] = None
     kosten: float = 0.0
 
+
 class WartungOut(WartungBase):
     id: int
-    class Config: from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
 
 class ZaehlerstandBase(BaseModel):
     geraet_id: int
     zeitpunkt: datetime
     stunden: float
 
+
 class ZaehlerstandOut(ZaehlerstandBase):
     id: int
-    class Config: from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
-# ----- Reports -----
+
+# ---------- Reports ----------
 class AuslastungRequest(BaseModel):
     von: date
     bis: date
-    geraet_id: Optional[int] = None  # if None -> all
+    geraet_id: Optional[int] = None  # None = alle
+
 
 class AuslastungItem(BaseModel):
     geraet_id: int
@@ -155,9 +190,11 @@ class AuslastungItem(BaseModel):
     tage_vermietet: int
     auslastung_prozent: float
 
+
 class AuslastungResponse(BaseModel):
     items: List[AuslastungItem]
     flotte_auslastung_prozent: float
+
 
 class AbrechnungResponse(BaseModel):
     vermietung_id: int
@@ -167,6 +204,7 @@ class AbrechnungResponse(BaseModel):
     einnahmen: float
     kosten_summe: float
     marge: float
+
 
 class GeraetFinanzenResponse(BaseModel):
     geraet_id: int

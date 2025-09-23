@@ -5,6 +5,7 @@ from sqlalchemy import select, func, and_, or_
 from . import models as m
 from .utils.date_math import overlap_days, days_inclusive
 from .schemas import SatzEinheit, VermietStatus
+from datetime import date as _today
 
 # ---------- CRUD helpers (illustrative subset; FastAPI endpoints use these) ----------
 def list_geraete(db: Session, status=None, standort_typ=None, skip=0, limit=50):

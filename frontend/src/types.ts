@@ -47,12 +47,13 @@ export interface Vermietung {
   id: ID;
   geraet_id: ID;
   kunde_id: ID;
-  von: string; // ISO-Date
-  bis: string; // ISO-Date
+  von: string;
+  bis?: string | null;                 // <—
   satz_wert: number;
   satz_einheit: SatzEinheit;
   status: VermietStatus;
 }
+
 
 export interface VermietungPosition {
   id: ID;

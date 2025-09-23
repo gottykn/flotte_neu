@@ -7,6 +7,8 @@ from sqlalchemy import (
     UniqueConstraint, CheckConstraint, Text, Index
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from typing import Optional
+from datetime import date
 
 class Base(DeclarativeBase):
     pass
