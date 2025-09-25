@@ -6,9 +6,9 @@ from typing import List, Optional
 
 from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
 from sqlalchemy import text
-
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 from . import models as m
 from . import schemas as s
@@ -28,7 +28,7 @@ app = FastAPI(title="Mietpark API", version="1.0.0")
 
 ALLOWED_ORIGINS = [
     "https://flotte-neu-1.onrender.com",  # Frontend (Render static site)
-    "https://flotte-neu.onrender.com",    # API (für Tests mit Swagger etc.)
+    "https://flotte-neu.onrender.com",    # API (Swagger-Tests etc.)
     "http://localhost:5173",              # Lokale Entwicklung (Vite)
 ]
 
@@ -40,19 +40,20 @@ app.add_middleware(
     allow_credentials=False,
 )
 
-# Tabellen bei Start anlegen (nur für den ersten Boot; produktiv Alembic verwenden)
+# -------------------------------------------------------------------
+# Startup: Tabellen anlegen + neue Spalten sicherstellen
+# -------------------------------------------------------------------
 @app.on_event("startup")
 def startup_create_tables() -> None:
     m.Base.metadata.create_all(bind=engine)
     ensure_columns()
 
 
-# Healthcheck
-@app.get("/health")
-def health():
-    return {"status": "ok"}
-
 def ensure_columns() -> None:
+    """
+    Fügt neue optionale Spalten hinzu, falls sie im Schema fehlen.
+    (Produktiv besser via Alembic-Migrationen.)
+    """
     stmts = """
     ALTER TABLE geraete ADD COLUMN IF NOT EXISTS baujahr INTEGER;
     ALTER TABLE geraete ADD COLUMN IF NOT EXISTS mietpreis_wert NUMERIC;
@@ -61,6 +62,13 @@ def ensure_columns() -> None:
     """
     with engine.begin() as conn:
         conn.execute(text(stmts))
+
+
+# Healthcheck
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
 
 # -------------------------------------------------------------------
 # FIRMA
@@ -78,6 +86,7 @@ def create_firma(payload: s.FirmaBase, db: Session = Depends(get_db)):
 def list_firmen(db: Session = Depends(get_db)):
     return db.query(m.Firma).order_by(m.Firma.name).all()
 
+
 @app.put("/firmen/{firma_id}", response_model=s.FirmaOut)
 def update_firma(firma_id: int, payload: s.FirmaBase, db: Session = Depends(get_db)):
     obj = db.get(m.Firma, firma_id)
@@ -85,16 +94,21 @@ def update_firma(firma_id: int, payload: s.FirmaBase, db: Session = Depends(get_
         raise HTTPException(404, "Firma nicht gefunden")
     for k, v in payload.dict().items():
         setattr(obj, k, v)
-    db.commit(); db.refresh(obj)
+    db.commit()
+    db.refresh(obj)
     return obj
+
 
 @app.delete("/firmen/{firma_id}", status_code=204)
 def delete_firma(firma_id: int, db: Session = Depends(get_db)):
     obj = db.get(m.Firma, firma_id)
     if not obj:
         raise HTTPException(404, "Firma nicht gefunden")
-    db.delete(obj); db.commit()
+    db.delete(obj)
+    db.commit()
     return
+
+
 # -------------------------------------------------------------------
 # MIETPARK
 # -------------------------------------------------------------------
@@ -111,7 +125,7 @@ def create_mietpark(payload: s.MietparkBase, db: Session = Depends(get_db)):
 def list_mietparks(db: Session = Depends(get_db)):
     return db.query(m.Mietpark).order_by(m.Mietpark.name).all()
 
-# --- MIETPARK update/delete ---
+
 @app.put("/mietparks/{mietpark_id}", response_model=s.MietparkOut)
 def update_mietpark(mietpark_id: int, payload: s.MietparkBase, db: Session = Depends(get_db)):
     obj = db.get(m.Mietpark, mietpark_id)
@@ -119,16 +133,20 @@ def update_mietpark(mietpark_id: int, payload: s.MietparkBase, db: Session = Dep
         raise HTTPException(404, "Mietpark nicht gefunden")
     for k, v in payload.dict().items():
         setattr(obj, k, v)
-    db.commit(); db.refresh(obj)
+    db.commit()
+    db.refresh(obj)
     return obj
+
 
 @app.delete("/mietparks/{mietpark_id}", status_code=204)
 def delete_mietpark(mietpark_id: int, db: Session = Depends(get_db)):
     obj = db.get(m.Mietpark, mietpark_id)
     if not obj:
         raise HTTPException(404, "Mietpark nicht gefunden")
-    db.delete(obj); db.commit()
+    db.delete(obj)
+    db.commit()
     return
+
 
 # -------------------------------------------------------------------
 # KUNDE
@@ -188,8 +206,8 @@ def count_geraete_endpoint(
     standort_typ: Optional[s.StandortTyp] = Query(None),
     db: Session = Depends(get_db),
 ):
-    # Frontend erwartet eine nackte Zahl (JSON number)
-    return count_geraete(db, status=status, standort_typ=standort_typ)
+    # Frontend erwartet { "count": <number> }
+    return {"count": count_geraete(db, status=status, standort_typ=standort_typ)}
 
 
 @app.put("/geraete/{geraet_id}", response_model=s.GeraetOut)
@@ -203,8 +221,6 @@ def update_geraet(geraet_id: int, payload: s.GeraetBase, db: Session = Depends(g
     db.refresh(obj)
     return obj
 
-from sqlalchemy.exc import IntegrityError
-from fastapi import HTTPException
 
 @app.delete("/geraete/{geraet_id}")
 def delete_geraet(geraet_id: int, db: Session = Depends(get_db)):
@@ -217,8 +233,12 @@ def delete_geraet(geraet_id: int, db: Session = Depends(get_db)):
     except IntegrityError:
         db.rollback()
         # Falls z. B. Vermietungen/Wartungen auf das Gerät zeigen
-        raise HTTPException(409, "Gerät hat Referenzen (z. B. Vermietungen/Wartungen) und kann nicht gelöscht werden.")
+        raise HTTPException(
+            409,
+            "Gerät hat Referenzen (z. B. Vermietungen/Wartungen) und kann nicht gelöscht werden.",
+        )
     return {"ok": True}
+
 
 # Einzelgerät laden
 @app.get("/geraete/{geraet_id}", response_model=s.GeraetOut)
@@ -227,6 +247,7 @@ def get_geraet(geraet_id: int, db: Session = Depends(get_db)):
     if not obj:
         raise HTTPException(404, "Gerät nicht gefunden")
     return obj
+
 
 # Vermietungen zu einem Gerät
 @app.get("/geraete/{geraet_id}/vermietungen", response_model=List[s.VermietungOut])
@@ -244,14 +265,18 @@ def list_vermietungen_geraet(geraet_id: int, db: Session = Depends(get_db)):
 # -------------------------------------------------------------------
 @app.post("/vermietungen", response_model=s.VermietungOut)
 def create_vermietung(payload: s.VermietungBase, db: Session = Depends(get_db)):
-    # Validierung macht das Schema; hier nur persistieren
+    # Validierung (bis >= von) macht das Schema; hier nur persistieren
     obj = m.Vermietung(**payload.dict())
-    db.add(obj); db.commit(); db.refresh(obj)
+    db.add(obj)
+    db.commit()
+    db.refresh(obj)
     return obj
 
-@app.get("/vermietungen", response_model=list[s.VermietungOut])
+
+@app.get("/vermietungen", response_model=List[s.VermietungOut])
 def list_vermietungen(db: Session = Depends(get_db)):
     return db.query(m.Vermietung).order_by(m.Vermietung.id.desc()).all()
+
 
 @app.post("/vermietungen/{vermietung_id}/starten", response_model=s.VermietungOut)
 def starten(vermietung_id: int, db: Session = Depends(get_db)):
@@ -261,19 +286,25 @@ def starten(vermietung_id: int, db: Session = Depends(get_db)):
     v.status = s.VermietStatus.OFFEN
     v.geraet.status = s.GeraetStatus.VERMIETET
     v.geraet.standort_typ = s.StandortTyp.KUNDE
-    db.commit(); db.refresh(v)
+    db.commit()
+    db.refresh(v)
     return v
 
+
 @app.post("/vermietungen/{vermietung_id}/schliessen", response_model=s.VermietungOut)
-def schliessen(vermietung_id: int, bis: Optional[_date] = None, db: Session = Depends(get_db)):
+def schliessen(vermietung_id: int, bis: Optional[date] = None, db: Session = Depends(get_db)):
+    """
+    Schließt eine Vermietung. Wenn `bis` nicht übergeben wird, wird das heutige Datum verwendet.
+    """
     v = db.get(m.Vermietung, vermietung_id)
     if not v:
         raise HTTPException(404, "Vermietung nicht gefunden")
     v.status = s.VermietStatus.GESCHLOSSEN
-    v.bis = bis or _date.today()  # Default: heute
+    v.bis = bis or date.today()  # Default: heute
     v.geraet.status = s.GeraetStatus.VERFUEGBAR
     v.geraet.standort_typ = s.StandortTyp.MIETPARK
-    db.commit(); db.refresh(v)
+    db.commit()
+    db.refresh(v)
     return v
 
 
