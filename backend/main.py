@@ -51,14 +51,45 @@ def startup_create_tables() -> None:
 
 def ensure_columns() -> None:
     """
-    Fügt neue optionale Spalten hinzu, falls sie im Schema fehlen.
-    (Produktiv besser via Alembic-Migrationen.)
+    Schema-Anpassungen, idempotent:
+    - neue optionale Spalten auf 'geraete'
+    - 'vermietungen.bis' nullable + Check-Constraint: bis IS NULL OR bis >= von
     """
     stmts = """
+    -- ============= GERÄTE: optionale Felder sicherstellen ==================
     ALTER TABLE geraete ADD COLUMN IF NOT EXISTS baujahr INTEGER;
     ALTER TABLE geraete ADD COLUMN IF NOT EXISTS mietpreis_wert NUMERIC;
     ALTER TABLE geraete ADD COLUMN IF NOT EXISTS mietpreis_einheit VARCHAR(20);
     ALTER TABLE geraete ADD COLUMN IF NOT EXISTS vermietet_in VARCHAR(2);
+
+    -- ============= VERMIETUNGEN: offenes Enddatum erlauben =================
+    DO $$
+    BEGIN
+      -- 1) 'bis' darf NULL sein (falls noch NOT NULL, entferne es)
+      BEGIN
+        ALTER TABLE vermietungen ALTER COLUMN bis DROP NOT NULL;
+      EXCEPTION WHEN others THEN
+        -- schon nullable -> ignorieren
+        NULL;
+      END;
+
+      -- 2) evtl. alte Constraint droppen (Name kann je nach DB variieren)
+      BEGIN
+        ALTER TABLE vermietungen DROP CONSTRAINT IF EXISTS ck_zeitraum_gueltig;
+      EXCEPTION WHEN others THEN NULL; END;
+      BEGIN
+        ALTER TABLE vermietungen DROP CONSTRAINT IF EXISTS vermietungen_ck_zeitraum_gueltig;
+      EXCEPTION WHEN others THEN NULL; END;
+
+      -- 3) neue Constraint setzen
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'ck_zeitraum_gueltig'
+      ) THEN
+        ALTER TABLE vermietungen
+          ADD CONSTRAINT ck_zeitraum_gueltig
+          CHECK (bis IS NULL OR bis >= von);
+      END IF;
+    END $$;
     """
     with engine.begin() as conn:
         conn.execute(text(stmts))
