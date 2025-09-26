@@ -87,6 +87,9 @@ export const api = {
   updateGeraet: (id: number, body: any) =>
     request<Geraet>(`/geraete/${id}`, { method: "PUT", body: JSON.stringify(body) }),
   deleteGeraet: (id: number) => request(`/geraete/${id}`, { method: "DELETE" }),
+  getGeraet: (id: number) =>
+  request<Geraet>(`/geraete/${id}`),
+
 
 
   // ---- Vermietungen ----

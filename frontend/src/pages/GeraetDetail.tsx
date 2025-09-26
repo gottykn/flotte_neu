@@ -1,5 +1,6 @@
+// src/pages/GeraetDetail.tsx
 import React, { useEffect, useMemo, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import type { Geraet, Vermietung } from "../types";
 import Money from "../components/Money";
@@ -21,57 +22,86 @@ export default function GeraetDetailPage() {
 }
 
 function GeraetDetail({ id }: { id: number }) {
+  const nav = useNavigate();
   const [g, setG] = useState<Geraet | null>(null);
   const [verm, setVerm] = useState<Vermietung[]>([]);
   const [fin, setFin] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
-    let alive = true;
+    let cancelled = false;
+
     (async () => {
+      setLoading(true);
+      setErr(null);
+
+      // 1) Gerät immer zuerst (wenn das fehlschlägt, Seite sinnvoll beenden)
       try {
-        setLoading(true);
-        // Falls du /vermietungen?geraet_id= nicht im Backend hast, fällt das auf list+filter zurück.
-        const [gd, alleV, fz] = await Promise.all([
-          api.getGeraet(id),
-          api.listVermietungen(),
-          api.geraetFinanzen(id),
-        ]);
-        if (!alive) return;
-        setG(gd);
-        setVerm(alleV.filter((v: any) => v.geraet_id === id || v.geraet?.id === id));
-        setFin(fz);
-      } finally {
-        if (alive) setLoading(false);
+        const gd = await api.getGeraet(id);
+        if (!cancelled) setG(gd);
+      } catch (e: any) {
+        if (!cancelled) {
+          setErr(e?.message ?? "Gerät konnte nicht geladen werden.");
+          setLoading(false);
+        }
+        return; // nicht weiterladen
+      }
+
+      // 2) Rest tolerant laden
+      const [vermRes, finRes] = await Promise.allSettled([
+        api.listVermietungen(),
+        api.geraetFinanzen(id),
+      ]);
+
+      if (!cancelled) {
+        if (vermRes.status === "fulfilled") {
+          const alle = vermRes.value as Vermietung[];
+          setVerm(
+            alle.filter(
+              (v: any) => v.geraet_id === id || v.geraet?.id === id
+            )
+          );
+        }
+        if (finRes.status === "fulfilled") {
+          setFin(finRes.value);
+        } else {
+          // Finanzen optional – kein Blocker für die Seite
+          setFin(null);
+        }
+        setLoading(false);
       }
     })();
+
     return () => {
-      alive = false;
+      cancelled = true;
     };
   }, [id]);
 
-  const einnahmen = fin?.einnahmen ?? fin?.miete_summe ?? 0;
-  const kosten = fin?.kosten_summe ?? fin?.kosten ?? 0;
-  const marge = Number(einnahmen) - Number(kosten);
+  const einnahmen = Number(fin?.einnahmen ?? fin?.miete_summe ?? 0);
+  const kosten = Number(fin?.kosten ?? fin?.kosten_summe ?? 0);
+  const marge = einnahmen - kosten;
 
   const chartData = useMemo(
     () => [
-      { name: "Einnahmen", value: Number(einnahmen) || 0 },
-      { name: "Ausgaben", value: Number(kosten) || 0 },
+      { name: "Einnahmen", value: einnahmen },
+      { name: "Ausgaben", value: kosten },
     ],
     [einnahmen, kosten]
   );
 
-  if (loading || !g) return <div className="p-4">Lade Gerät…</div>;
+  if (loading) return <div className="p-4">Lade Gerät…</div>;
+  if (err) return <div className="p-4 text-red-700">{err}</div>;
+  if (!g) return <div className="p-4">Gerät nicht gefunden.</div>;
 
   return (
     <div className="space-y-6 p-2 md:p-4">
       <div className="flex items-center gap-3">
-        <button className="btn" onClick={() => history.back()}>
+        <button className="btn" onClick={() => nav(-1)}>
           ← Zurück
         </button>
         <h1 className="text-2xl font-semibold">{g.name}</h1>
-        <span className="ml-auto text-sm rounded-xl px-3 py-1 bg-slate-100">
+        <span className="ml-auto text-xs rounded-xl px-2 py-1 bg-slate-100">
           {g.kategorie || "—"}
         </span>
       </div>
@@ -122,9 +152,11 @@ function GeraetDetail({ id }: { id: number }) {
             {verm.map((v) => (
               <li key={v.id} className="py-2 flex items-center justify-between">
                 <div>
-                  <div className="font-medium">#{v.id} → Kunde {v.kunde_id}</div>
+                  <div className="font-medium">
+                    #{v.id} → Kunde {v.kunde_id}
+                  </div>
                   <div className="text-xs text-slate-500">
-                    {v.von} bis {v.bis} · {v.satz_wert} / {v.satz_einheit} · {v.status}
+                    {v.von} bis {v.bis ?? "offen"} · {v.satz_wert} / {v.satz_einheit} · {v.status}
                   </div>
                 </div>
                 <Link className="text-sm text-blue-700 hover:underline" to="/vermietungen">
@@ -145,7 +177,7 @@ function Kpi({
   tone,
 }: {
   title: string;
-  value: any;
+  value: React.ReactNode;
   tone?: "good" | "bad";
 }) {
   return (
