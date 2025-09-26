@@ -15,11 +15,10 @@ export default function NewRentalModal({ open, onClose, onCreated }: Props) {
   const [geraetId, setGeraetId] = useState<number | "">("");
   const [kundeId, setKundeId] = useState<number | "">("");
   const [von, setVon] = useState<string>("");
-  const [bis, setBis] = useState<string>("");
+  const [bis, setBis] = useState<string>(""); // <-- optional
 
-  // <-- WICHTIG: Namen ans Backend anpassen
-  const [satzWert, setSatzWert] = useState<string>("");           // statt "preis"
-  const [satzEinheit, setSatzEinheit] = useState<Einheit>("MONATLICH"); // statt "preis_einheit"
+  const [satzWert, setSatzWert] = useState<string>("");
+  const [satzEinheit, setSatzEinheit] = useState<Einheit>("MONATLICH");
 
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -32,7 +31,6 @@ export default function NewRentalModal({ open, onClose, onCreated }: Props) {
           api.listGeraete({ skip: 0, limit: 500 }),
           api.listKunden(),
         ]);
-        // api.listGeraete liefert volle Geräte; für Auswahl nur id/name mappen
         setGeraete((g as any[]).map(x => ({ id: x.id, name: x.name ?? `Gerät ${x.id}` })));
         setKunden(k as IdName[]);
       } catch (e: any) {
@@ -46,8 +44,8 @@ export default function NewRentalModal({ open, onClose, onCreated }: Props) {
 
     if (!geraetId) return setErr("Bitte ein Gerät wählen.");
     if (!kundeId) return setErr("Bitte einen Kunden wählen.");
-    if (!von || !bis) return setErr("Bitte Zeitraum wählen.");
-    if (bis < von) return setErr("„Bis“ darf nicht vor „Von“ liegen.");
+    if (!von) return setErr("Bitte Startdatum wählen.");
+    if (bis && bis < von) return setErr("„Bis“ darf nicht vor „Von“ liegen.");
     if (!satzWert.trim()) return setErr("Bitte einen Mietsatz angeben.");
     const wertNum = Number(satzWert);
     if (Number.isNaN(wertNum) || wertNum < 0) return setErr("Ungültiger Mietsatz.");
@@ -57,15 +55,21 @@ export default function NewRentalModal({ open, onClose, onCreated }: Props) {
       await api.createVermietung({
         geraet_id: Number(geraetId),
         kunde_id: Number(kundeId),
-        von,                     // yyyy-mm-dd vom <input type="date">
-        bis,
-        satz_wert: wertNum,      // <-- korrekter Feldname
-        satz_einheit: satzEinheit, // <-- korrekter Feldname
+        von,
+        // WICHTIG: leeres Enddatum als null -> offenes Ende
+        bis: bis ? bis : null,
+        satz_wert: wertNum,
+        satz_einheit: satzEinheit,
       });
       onCreated();
       onClose();
       // reset
-      setGeraetId(""); setKundeId(""); setVon(""); setBis(""); setSatzWert(""); setSatzEinheit("MONATLICH");
+      setGeraetId("");
+      setKundeId("");
+      setVon("");
+      setBis("");
+      setSatzWert("");
+      setSatzEinheit("MONATLICH");
     } catch (e: any) {
       setErr(e?.message ?? "Anlegen fehlgeschlagen.");
     } finally {
@@ -89,7 +93,14 @@ export default function NewRentalModal({ open, onClose, onCreated }: Props) {
         <div className="space-y-3">
           <label className="flex flex-col gap-1">
             <span className="text-sm">Gerät *</span>
-            <select className="rounded-xl border p-2" value={geraetId} onChange={e => setGeraetId(Number(e.target.value))}>
+            <select
+              className="rounded-xl border p-2"
+              value={geraetId}
+              onChange={e => {
+                const v = e.target.value;
+                setGeraetId(v === "" ? "" : Number(v));
+              }}
+            >
               <option value="">— wählen —</option>
               {geraete.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
             </select>
@@ -97,7 +108,14 @@ export default function NewRentalModal({ open, onClose, onCreated }: Props) {
 
           <label className="flex flex-col gap-1">
             <span className="text-sm">Kunde *</span>
-            <select className="rounded-xl border p-2" value={kundeId} onChange={e => setKundeId(Number(e.target.value))}>
+            <select
+              className="rounded-xl border p-2"
+              value={kundeId}
+              onChange={e => {
+                const v = e.target.value;
+                setKundeId(v === "" ? "" : Number(v));
+              }}
+            >
               <option value="">— wählen —</option>
               {kunden.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
             </select>
@@ -109,8 +127,13 @@ export default function NewRentalModal({ open, onClose, onCreated }: Props) {
               <input type="date" className="rounded-xl border p-2" value={von} onChange={e => setVon(e.target.value)} />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-sm">Bis *</span>
-              <input type="date" className="rounded-xl border p-2" value={bis} onChange={e => setBis(e.target.value)} />
+              <span className="text-sm">Bis <span className="text-slate-500">(optional)</span></span>
+              <input
+                type="date"
+                className="rounded-xl border p-2"
+                value={bis}
+                onChange={e => setBis(e.target.value)}
+              />
             </label>
           </div>
 
@@ -127,7 +150,11 @@ export default function NewRentalModal({ open, onClose, onCreated }: Props) {
             </label>
             <label className="flex flex-col gap-1">
               <span className="text-sm">Einheit *</span>
-              <select className="rounded-xl border p-2" value={satzEinheit} onChange={e => setSatzEinheit(e.target.value as Einheit)}>
+              <select
+                className="rounded-xl border p-2"
+                value={satzEinheit}
+                onChange={e => setSatzEinheit(e.target.value as Einheit)}
+              >
                 {EINHEITEN.map(e => <option key={e} value={e}>{e}</option>)}
               </select>
             </label>
