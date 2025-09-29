@@ -24,7 +24,7 @@ function Layout() {
           <img
             src={logoSrc}
             alt="Firmenlogo"
-            className="h-8 w-auto select-none"
+            className="h-14 w-auto select-none"
             draggable={false}
           />
           <span className="sr-only">Mietpark-Management</span>
