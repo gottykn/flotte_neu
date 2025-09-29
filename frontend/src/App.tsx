@@ -10,9 +10,10 @@ import Einnahmen from "./pages/Einnahmen";
 import Berichte from "./pages/Berichte";
 import GeraetDetailPage from "./pages/GeraetDetail";
 
+import logoSrc from "./assets/logo.svg";
 // Optional: wenn du lieber aus src/assets importierst, ersetze `logoSrc` durch:
 // import logoSrc from "./assets/logo.svg";
-const logoSrc = "/logo.svg";
+
 
 function Layout() {
   return (
