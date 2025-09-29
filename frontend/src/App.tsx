@@ -11,16 +11,13 @@ import Berichte from "./pages/Berichte";
 import GeraetDetailPage from "./pages/GeraetDetail";
 
 import logoSrc from "./assets/logo.svg";
-// Optional: wenn du lieber aus src/assets importierst, ersetze `logoSrc` durch:
-// import logoSrc from "./assets/logo.svg";
-
 
 function Layout() {
   return (
     <>
       {/* Header mit Logo */}
-      <header className="max-w-6xl mx-auto p-4">
-        <Link to="/" className="inline-flex items-center gap-2">
+      <header className="max-w-7xl mx-auto px-5 py-3 md:py-4">
+        <Link to="/" className="inline-flex items-center gap-3">
           <img
             src={logoSrc}
             alt="Firmenlogo"
@@ -40,8 +37,7 @@ function HomeTabs() {
   const tabs = ["Geräte", "Vermietungen", "Einnahmen", "Berichte", "Stammdaten"];
 
   return (
-    <div className="max-w-6xl mx-auto p-4">
-      {/* Überschrift entfällt, Logo ist im Header */}
+    <div className="max-w-7xl mx-auto px-5 pt-2">
       <Tabs tabs={tabs} current={tab} onChange={setTab} />
       {tab === "Geräte" && <Geraete />}
       {tab === "Vermietungen" && <Vermietungen />}
@@ -57,7 +53,9 @@ export default function App() {
     <HashRouter>
       <Routes>
         <Route element={<Layout />}>
+          {/* Startansicht mit Tabs */}
           <Route path="/" element={<HomeTabs />} />
+          {/* Detail-Route für einzelne Geräte */}
           <Route path="/geraete/:id" element={<GeraetDetailPage />} />
         </Route>
       </Routes>
